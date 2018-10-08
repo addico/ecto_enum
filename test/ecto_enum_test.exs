@@ -5,11 +5,14 @@ defmodule EctoEnumTest do
   keywords = [registered: 0, active: 1, inactive: 2, archived: 3]
   defenum StatusEnum, keywords
 
+  defenum TypeEnum, customer: "string_for_customer", employee: "string_for_employee"
+
   defmodule User do
     use Ecto.Schema
 
     schema "users" do
       field :status, StatusEnum
+      field :type, TypeEnum
     end
 
     def roles do
@@ -38,6 +41,14 @@ defmodule EctoEnumTest do
     TestRepo.insert!(%User{status: :archived})
     user = TestRepo.get_by(User, status: :archived)
     assert user.status == :archived
+
+    TestRepo.insert!(%User{type: :customer})
+    user = TestRepo.get_by(User, type: :customer)
+    assert user.type == :customer
+
+    TestRepo.insert!(%User{type: "string_for_employee"})
+    user = TestRepo.get_by(User, type: "string_for_employee")
+    assert user.type == :employee
   end
 
   test "casts int and binary to atom" do
@@ -49,6 +60,15 @@ defmodule EctoEnumTest do
 
     %{changes: changes} = Ecto.Changeset.cast(%User{}, %{"status" => :inactive}, ~w(status))
     assert changes.status == :inactive
+
+    %{changes: changes} = Ecto.Changeset.cast(%User{}, %{"type" => "customer"}, ~w(type))
+    assert changes.type == :customer
+
+    %{changes: changes} = Ecto.Changeset.cast(%User{}, %{"type" => "string_for_customer"}, ~w(type))
+    assert changes.type == :customer
+
+    %{changes: changes} = Ecto.Changeset.cast(%User{}, %{"type" => :customer}, ~w(type))
+    assert changes.type == :customer
   end
 
   test "raises when input is not in the enum map" do
@@ -74,6 +94,18 @@ defmodule EctoEnumTest do
     assert_raise Ecto.ChangeError, custom_error_msg(5), fn ->
       TestRepo.insert!(%User{status: 5})
     end
+
+    assert_raise Ecto.ChangeError, fn ->
+      TestRepo.insert!(%User{type: 0})
+    end
+
+    assert_raise Ecto.ChangeError, fn ->
+      TestRepo.insert!(%User{type: :other_type})
+    end
+
+    assert_raise Ecto.ChangeError, fn ->
+      TestRepo.insert!(%User{type: "other_type"})
+    end
   end
 
   test "reflection" do
@@ -81,6 +113,7 @@ defmodule EctoEnumTest do
     assert StatusEnum.__valid_values__() == [0, 1, 2, 3,
       :registered, :active, :inactive, :archived,
       "active", "archived", "inactive", "registered"]
+    assert TypeEnum.__enum_map__() == [customer: "string_for_customer", employee: "string_for_employee"]
   end
 
   describe "validate_enum/3" do
@@ -123,6 +156,18 @@ defmodule EctoEnumTest do
 
   test "defenum/3 can accept remote function calls" do
     defenum TestEnum, :role, User.roles()
+  end
+
+  test "determines storage type" do
+    assert EctoEnum.storage(user: "user", admin: "admin") == :string
+    assert EctoEnum.storage(registered: 0, active: 1, inactive: 2, archived: 3) == :integer
+    assert EctoEnum.storage(registered: 0, active: 1, inactive: 2, archived: 3, retroactive: "retroactive") == :indeterminate
+  end
+
+  test "raises when storage type is undeterminable" do
+    assert_raise EctoEnum.UndeterminableStorageError, fn ->
+      defenum TestEnum, integer: 0, string: ""
+    end
   end
 
   def custom_error_msg(value) do

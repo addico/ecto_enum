@@ -4,6 +4,7 @@ defmodule Ecto.Integration.Migration do
   def change do
     create table(:users) do
       add :status, :integer
+      add :type, :string
     end
 
     execute "CREATE TYPE status AS ENUM ('registered', 'active', 'inactive', 'archived')"
