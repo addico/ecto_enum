@@ -157,7 +157,7 @@ defmodule EctoEnum do
       end
     end
 
-    @spec dump(any, [{atom(), any()}], map, map) :: {:ok, integer | string} | :error
+    @spec dump(any, [{atom(), any()}], map, map) :: {:ok, integer | String.t} | :error
     def dump(atom, atom_rawval_kw, _, _) when is_atom(atom) do
       Keyword.fetch(atom_rawval_kw, atom)
     end
